@@ -44,12 +44,23 @@ private:
 
 public:
     LRUCache(int capacity){
-        this->capacity = capacity;
         head = new Node("", "");
         tail = new Node("", "");
         head->next = tail;
         tail->prev = head;
     }
+
+    ~LRUCache() {
+        Node* current = head->next;
+        while (current != tail) {
+            Node* toDelete = current;
+            current = current->next;
+            delete toDelete;
+        }
+        delete head;
+        delete tail;
+    }
+
 
     string get(const string& key){
         //I need check the key exist then update LRU then return the value of the key
