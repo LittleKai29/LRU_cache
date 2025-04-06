@@ -5,11 +5,17 @@
             "label": "C/C++: g++ build active file",
             "command": "/usr/bin/g++",
             "args": [
-                "-fdiagnostics-color=always",
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
                 "-g",
-                "${file}",
+                "-I${workspaceFolder}/include",
+                "${workspaceFolder}/main.cpp",         // Source file 1
+                "${workspaceFolder}/src/lru_cache.cpp", // Source file 2
+                // "${workspaceFolder}/src/node.cpp", // REMOVED!
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/lru_cache_test",
+                "-pthread"
             ],
             "options": {
                 "cwd": "${fileDirname}"
