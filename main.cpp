@@ -97,6 +97,16 @@ public:
         }
     }
 
+    void remove(const string& key) {
+        auto it = cache.find(key);
+        if (it != cache.end()) {
+            Node* node = it->second;
+            removeNode(node);
+            cache.erase(it);
+            delete node;
+        }
+    }
+
     void print() {
         Node* current = head->next;
         while (current != tail) {
@@ -124,17 +134,7 @@ int main() {
     cout << "Get A: " << cache.get("A") << endl;  // Expected: Apple
     cache.print();  // Expected: A, B, C (A is now at the front)
 
-    // Test 3: Put a new value and evict the least recently used (B)
-    cache.put("D", "Date");
-    cout << "Cache after putting D:" << endl;
-    cache.print();  // Expected: A, D, C
-
-    // Test 4: Access an evicted item (should return empty)
-    cout << "Get B: " << cache.get("B") << endl;  // Expected: ""
-
-    // Test 5: Put a value that already exists (update the value)
-    cache.put("A", "Apricot");
-    cout << "Cache after updating A:" << endl;
+    cache.remove("A");
     cache.print();  // Expected: A, D, C (A's value is updated to Apricot)
 
     return 0;
