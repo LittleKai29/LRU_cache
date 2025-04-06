@@ -1,5 +1,9 @@
 #include <iostream>
 #include <unordered_map>
+#include <mutex>
+#include <thread>
+#include <vector>
+#include <chrono>
 using namespace std;
 
 struct Node {
@@ -15,6 +19,7 @@ private:
     unordered_map<string, Node*> cache;
     Node* head;
     Node* tail;
+    std::mutex mtx;
 
     void moveToHead(Node* node) {
         removeNode(node);
@@ -63,6 +68,7 @@ public:
     string get(const string& key){
         //I need check the key exist then update LRU then return the value of the key
         //Else do nothing ?
+        std::lock_guard<std::mutex> lock(mtx);
         auto it = cache.find(key);
         if (it != cache.end()) {
             Node* currentNode = it->second;
@@ -76,6 +82,7 @@ public:
         //Yeah it's the use of unordered_map here, I have to check is the key exist
         //If it exist I have to perform update
         //Else I have to add it too the first
+        std::lock_guard<std::mutex> lock(mtx);
         auto it = cache.find(key);
         if (it != cache.end()) {
             // Update value and move to head
@@ -98,6 +105,7 @@ public:
     }
 
     void remove(const string& key) {
+        std::lock_guard<std::mutex> lock(mtx);
         auto it = cache.find(key);
         if (it != cache.end()) {
             Node* node = it->second;
@@ -108,6 +116,7 @@ public:
     }
 
     void print() {
+        std::lock_guard<std::mutex> lock(mtx);
         Node* current = head->next;
         while (current != tail) {
             cout << current->key << ": " << current->value << " <- ";
@@ -117,25 +126,45 @@ public:
     }
 };
 
+std::mutex cout_mutex;
+
+void accessCache(LRUCache& cache, string key, string value, bool isPut) {
+    if (isPut) {
+        cache.put(key, value); // Put operation
+    } else {
+        string val = cache.get(key); // Get operation
+        {
+            std::lock_guard<std::mutex> lock(cout_mutex); // Lock to print output safely
+            cout << "Thread get " << key << ": " << val << endl;
+        }
+    }
+}
+
+
 int main() {
-    // Create a cache with capacity 3
     LRUCache cache(3);
-
-    // Test 1: Put some values
-    cache.put("A", "Apple");
-    cache.put("B", "Banana");
-    cache.put("C", "Cherry");
-
-    // Print cache state
-    cout << "Cache after 3 puts:" << endl;
-    cache.print();  // Expected: A, B, C
-
-    // Test 2: Get values
-    cout << "Get A: " << cache.get("A") << endl;  // Expected: Apple
-    cache.print();  // Expected: A, B, C (A is now at the front)
-
-    cache.remove("A");
-    cache.print();  // Expected: A, D, C (A's value is updated to Apricot)
-
-    return 0;
+    
+    // Creating multiple threads to put values in cache
+    vector<thread> threads;
+    
+    // Simulate putting data
+    threads.push_back(thread(accessCache, std::ref(cache), "A", "Apple", true));
+    threads.push_back(thread(accessCache, std::ref(cache), "B", "Banana", true));
+    threads.push_back(thread(accessCache, std::ref(cache), "C", "Cherry", true));
+    threads.push_back(thread(accessCache, std::ref(cache), "D", "Date", true));  // This should evict "A"
+    threads.push_back(thread(accessCache, std::ref(cache), "E", "Elderberry", true)); // This should evict "B"
+    
+    // Simulate getting data
+    threads.push_back(thread(accessCache, std::ref(cache), "A", "", false)); // Should print "" since "A" was evicted
+    threads.push_back(thread(accessCache, std::ref(cache), "B", "", false)); // Should print "" since "B" was evicted
+    threads.push_back(thread(accessCache, std::ref(cache), "C", "", false)); // Should print "Cherry"
+    threads.push_back(thread(accessCache, std::ref(cache), "D", "", false)); // Should print "Date"
+    
+    for (auto& t : threads) {
+        t.join(); // Wait for all threads to finish
+    }
+    
+    // Final state of cache
+    cout << "Final Cache State: ";
+    cache.print();
 }
