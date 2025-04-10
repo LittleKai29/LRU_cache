@@ -1,0 +1,49 @@
+// protos/cache.proto
+syntax = "proto3";
+
+package cache;
+
+// Option specific to C++ code generation
+option cpp_namespace = "cache_rpc";
+
+// The cache service definition.
+service CacheService {
+  // Gets a value from the cache
+  rpc Get (GetRequest) returns (GetResponse) {}
+  // Puts a key-value pair into the cache
+  rpc Put (PutRequest) returns (PutResponse) {}
+  // Deletes a key from the cache
+  rpc Delete (DeleteRequest) returns (DeleteResponse) {}
+}
+
+// Request message for Get RPC
+message GetRequest {
+  string key = 1;
+}
+
+// Response message for Get RPC
+message GetResponse {
+  string value = 1;
+  bool found = 2; // Indicate if the key was found (and not expired)
+}
+
+// Request message for Put RPC
+message PutRequest {
+  string key = 1;
+  string value = 2;
+}
+
+// Response message for Put RPC (can be empty if no specific info needed)
+message PutResponse {
+  bool success = 1; // Optional: indicate success
+}
+
+// Request message for Delete RPC
+message DeleteRequest {
+  string key = 1;
+}
+
+// Response message for Delete RPC
+message DeleteResponse {
+  bool success = 1; // Optional: indicate success
+}
