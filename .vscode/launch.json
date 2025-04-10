@@ -1,44 +1,36 @@
-// .vscode/tasks.json
 {
     "version": "2.0.0",
     "tasks": [
         {
-            // 1. Descriptive label for this specific build task
-            "label": "Build LRU Cache Project (g++)",
-            "type": "shell", // Use shell execution
-            "command": "g++", // Your compiler
+            "label": "C/C++: g++ build active file",
+            "type": "shell",
+            "command": "g++",
             "args": [
-                "-std=c++17",      // Or c++11, c++14, c++20 as needed
-                "-Wall",           // Enable common warnings
-                "-Wextra",         // Enable extra warnings
-                "-g",              // Generate debugging symbols
-                // 2. Tell g++ where to find headers (#include "node.h", etc.)
+                "-std=c++17",
+                "-Wall",
+                "-Wextra",
+                "-g",
                 "-I${workspaceFolder}/include",
-                // 3. List ALL source files to compile
                 "${workspaceFolder}/main.cpp",
                 "${workspaceFolder}/src/lru_cache.cpp",
-                //"${workspaceFolder}/src/node.cpp",
-                // 4. Specify the output executable file path
                 "-o",
-                "${workspaceFolder}/lru_cache_app", // Output executable name (e.g., lru_cache_app)
-                 // 5. Link the pthreads library for std::thread
+                "${workspaceFolder}/lru_cache_app",
                 "-pthread"
             ],
             "options": {
-                // Optional: Set the working directory for the build command
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
-                "$gcc" // Helps VS Code parse g++ output for errors/warnings
+                "$gcc"
             ],
             "group": {
-                // 6. Make this the default build task (Ctrl+Shift+B)
                 "kind": "build",
                 "isDefault": true
             },
             "detail": "Compiles the entire LRU Cache project using g++."
         }
-        // You can remove any old "C/C++: g++ build active file" tasks if you want,
-        // or keep them if you sometimes build single files for other reasons.
+    ],
+    "configurations": [
+    
     ]
 }

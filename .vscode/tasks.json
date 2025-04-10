@@ -10,9 +10,8 @@
                 "-Wextra",
                 "-g",
                 "-I${workspaceFolder}/include",
-                "${workspaceFolder}/main.cpp",         // Source file 1
-                "${workspaceFolder}/src/lru_cache.cpp", // Source file 2
-                // "${workspaceFolder}/src/node.cpp", // REMOVED!
+                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/src/lru_cache.cpp",
                 "-o",
                 "${workspaceFolder}/lru_cache_test",
                 "-pthread"

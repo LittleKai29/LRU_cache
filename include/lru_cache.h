@@ -6,12 +6,13 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <cstddef>
 // #include <chrono> // No longer needed directly here, Node handles timestamp
 
 // Class definition for the LRU Cache with TTL
 class LRUCache {
 private:
-    int capacity;
+    std::size_t capacity;
     std::unordered_map<std::string, Node*> cache; // Uses Node from node.h
     Node* head; // Dummy head (uses Node from node.h)
     Node* tail; // Dummy tail (uses Node from node.h)
@@ -28,7 +29,7 @@ private:
 
 public:
     // Constructor and Destructor
-    LRUCache(int cap, int ttl);
+    LRUCache(std::size_t cap, int ttl);
     virtual ~LRUCache();
 
     // Disable copy and assignment

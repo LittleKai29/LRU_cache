@@ -2,6 +2,7 @@
 #include <iostream>
 #include <utility>
 #include <chrono>      // Still needed here for time calculations in isExpired/get/put
+#include <cstddef>
 
 // --- LRUCache Private Helper Method Implementations ---
 // No changes needed in the implementation logic
@@ -53,12 +54,12 @@ bool LRUCache::isExpired(const Node* node) const {
 // --- LRUCache Public Method Implementations ---
 // No changes needed in the implementation logic
 
-LRUCache::LRUCache(int cap, int ttl) : capacity(cap), ttl_seconds(ttl) {
-    if (capacity <= 0) {
-       std::cerr << "Warning: Invalid cache capacity " << cap << ". Setting to 1." << std::endl;
-       capacity = 1;
+LRUCache::LRUCache(std::size_t cap, int ttl) : capacity(cap), ttl_seconds(ttl) {
+    // Adjust the check: capacity cannot be < 0, just check for 0.
+    if (capacity == 0) {
+       std::cerr << "Warning: Invalid cache capacity 0. Setting to 1." << std::endl;
+       capacity = 1; // Or throw std::invalid_argument("Capacity must be positive");
     }
-    // Uses Node constructor from node.cpp (via node.h)
     head = new Node("", "");
     tail = new Node("", "");
     head->next = tail;
