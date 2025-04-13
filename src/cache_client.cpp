@@ -15,13 +15,13 @@ using grpc::ClientContext;
 using grpc::Status;
 
 // Using the generated C++ namespace
-using cache_rpc::CacheService;
-using cache_rpc::DeleteRequest;
-using cache_rpc::DeleteResponse;
-using cache_rpc::GetRequest;
-using cache_rpc::GetResponse;
-using cache_rpc::PutRequest;
-using cache_rpc::PutResponse;
+using cache::CacheService;
+using cache::DeleteRequest;
+using cache::DeleteResponse;
+using cache::GetRequest;
+using cache::GetResponse;
+using cache::PutRequest;
+using cache::PutResponse;
 
 class CacheClient {
 public:

@@ -1,10 +1,7 @@
 // protos/cache.proto
 syntax = "proto3";
 
-package cache;
-
-// Option specific to C++ code generation
-option cpp_namespace = "cache_rpc";
+package cache; // This line controls the C++ namespace
 
 // The cache service definition.
 service CacheService {

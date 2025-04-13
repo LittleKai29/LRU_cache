@@ -1,0 +1,61 @@
+# --- CMake / Build Output ---
+# Ignore the entire build directory (most important!)
+/build/
+
+# Explicitly ignore common build artifacts even if not in /build/ (belt-and-suspenders)
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# CMake generated files (usually inside /build/ anyway)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# --- Generated Proto Files ---
+# These are typically inside the build directory (/build/generated/protos/ in your case)
+# and are covered by ignoring /build/. No need to list them explicitly here
+# unless you configure generation outside the build dir.
+
+# --- IDE / Editor Files ---
+# VS Code
+.vscode/
+
+# CLion
+.idea/
+
+# Vim swap files and backups
+*.swp
+.*.swp
+*.swo
+*~
+
+# Emacs backup files
+#*#
+
+# --- Operating System Files ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# --- Other ---
+# Log files (if your application generates any)
+*.log
+
+# Crash dumps (if applicable)
+*.dmp
+core*
+
+# Add any other user-specific or temporary files here
