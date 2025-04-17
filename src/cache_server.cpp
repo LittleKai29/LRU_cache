@@ -2,23 +2,25 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector> // Include vector
+#include <vector>
+#include <fstream> // For std::ofstream
 
 // gRPC Headers
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
-// Generated Proto Headers (adjust path based on generation output)
-#include "cache.grpc.pb.h" // Use "" for local includes
+// Generated Proto Headers
+#include "cache.grpc.pb.h"
 
 // Your LRU Cache Header
-#include "lru_cache.h" // Use "" for local includes
+#include "lru_cache.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
+using grpc::StatusCode; // For specific error codes
 
 // Using the generated C++ namespace
 using cache::CacheService;
@@ -32,86 +34,120 @@ using cache::PutResponse;
 // Logic and data behind the server's behavior.
 class CacheServiceImpl final : public CacheService::Service {
 private:
-    // The actual LRU Cache instance doing the work
-    LRUCache& lru_cache_; // Use a reference to a shared cache instance
+    LRUCache& lru_cache_; // Reference to the cache instance
 
 public:
-    // Constructor takes a reference to the cache it will manage
     explicit CacheServiceImpl(LRUCache& cache) : lru_cache_(cache) {}
-
-    // --- Implement the RPC methods defined in the .proto file ---
 
     Status Get(ServerContext* context, const GetRequest* request,
                GetResponse* response) override {
         std::cout << "Server received GET request for key: " << request->key() << std::endl;
-        std::string value = lru_cache_.get(request->key()); // Call your cache's get
+        // Use the public get method which calls get_sync internally
+        std::optional<std::string> value_opt = lru_cache_.get(request->key());
 
-        if (!value.empty()) {
-            response->set_value(value);
+        if (value_opt.has_value()) {
+            response->set_value(value_opt.value());
             response->set_found(true);
-            std::cout << "  Found value: " << value << std::endl;
+            std::cout << "  Found value: " << value_opt.value() << std::endl;
         } else {
-            response->set_value(""); // Explicitly set empty
+            response->set_value("");
             response->set_found(false);
             std::cout << "  Key not found or expired." << std::endl;
         }
-        return Status::OK; // Indicate successful processing of the request
+        return Status::OK;
     }
 
     Status Put(ServerContext* context, const PutRequest* request,
                PutResponse* response) override {
          std::cout << "Server received PUT request for key: " << request->key()
                    << " value: " << request->value() << std::endl;
-        lru_cache_.put(request->key(), request->value()); // Call your cache's put
-        response->set_success(true); // Indicate success
-        std::cout << "  Put successful." << std::endl;
-        return Status::OK;
+
+        // Use the public put method which calls put_sync and handles WAL
+        if (lru_cache_.put(request->key(), request->value())) {
+            response->set_success(true);
+            std::cout << "  Put successful." << std::endl;
+            return Status::OK;
+        } else {
+            // WAL write likely failed
+            response->set_success(false);
+             std::cout << "  Put failed (likely WAL error)." << std::endl;
+            return Status(StatusCode::INTERNAL, "Operation failed, potentially due to WAL error.");
+        }
     }
 
      Status Delete(ServerContext* context, const DeleteRequest* request,
                    DeleteResponse* response) override {
         std::cout << "Server received DELETE request for key: " << request->key() << std::endl;
-        lru_cache_.remove(request->key()); // Call your cache's remove
-        response->set_success(true); // Indicate success
-        std::cout << "  Delete successful." << std::endl;
-        return Status::OK;
+
+        // Use the public remove method which calls remove_sync and handles WAL
+        if (lru_cache_.remove(request->key())) {
+            response->set_success(true);
+            std::cout << "  Delete successful." << std::endl;
+            return Status::OK;
+        } else {
+            // WAL write likely failed
+            response->set_success(false);
+            std::cout << "  Delete failed (likely WAL error)." << std::endl;
+            return Status(StatusCode::INTERNAL, "Operation failed, potentially due to WAL error.");
+        }
     }
 };
 
-void RunServer(LRUCache& cache_instance) {
-    std::string server_address("0.0.0.0:50051"); // Listen on all interfaces, port 50051
-    CacheServiceImpl service(cache_instance);
+// --- Server Runner (Unchanged) ---
+void RunServer(LRUCache& cache_instance, const std::string& wal_filename) { // Pass WAL filename for info
+    std::string server_address("0.0.0.0:50051");
+    CacheServiceImpl service(cache_instance); // Service uses the prepared cache
 
     grpc::EnableDefaultHealthCheckService(true);
-    grpc::reflection::InitProtoReflectionServerBuilderPlugin(); // Optional: for server reflection
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
-
-    // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-
-    // Register "service" as the instance through which we'll communicate with
-    // clients. In this case it corresponds to an *synchronous* service.
     builder.RegisterService(&service);
 
-    // Finally assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
     std::cout << "Server listening on " << server_address << std::endl;
-
-    // Wait for the server to shutdown. Note that some other thread must be
-    // responsible for shutting down the server for this call to ever return.
+    std::cout << "Using WAL file: " << wal_filename << std::endl; // Log WAL file name
     server->Wait();
 }
 
+// --- Main Server Entry Point ---
 int main(int argc, char** argv) {
-    // --- Create your LRU Cache instance ---
-    // These values could come from command-line args, config file, etc.
+    // --- Configuration ---
     const std::size_t cache_capacity = 10;
     const int ttl_seconds = 60;
+    const std::string wal_filename = "cache.wal"; // Define WAL file name
+
+    // --- Create Cache Instance ---
     LRUCache shared_cache(cache_capacity, ttl_seconds);
     std::cout << "LRU Cache initialized (Capacity: " << cache_capacity << ", TTL: " << ttl_seconds << "s)" << std::endl;
 
-    // --- Run the gRPC server, passing the shared cache instance ---
-    RunServer(shared_cache); // Pass by reference
+    // --- Load State from WAL ---
+    if (!LRUCache::loadFromWAL(wal_filename, shared_cache)) {
+         std::cerr << "FATAL: Failed to load state from WAL. Exiting." << std::endl;
+         return 1; // Exit if recovery fails critically
+    }
+    // Print state after recovery
+    std::cout << "Cache state after WAL recovery: ";
+    shared_cache.print();
+
+
+    // --- Open WAL File for Appending ---
+    // IMPORTANT: Keep the stream object alive for the duration of the server!
+    std::ofstream wal_file_stream(wal_filename, std::ios::app);
+    if (!wal_file_stream.is_open()) {
+        std::cerr << "FATAL: Could not open WAL file '" << wal_filename << "' for appending." << std::endl;
+        return 1;
+    }
+
+    // --- Attach WAL Stream to Cache ---
+    shared_cache.setWalStream(&wal_file_stream);
+    std::cout << "WAL stream attached to cache instance." << std::endl;
+
+    // --- Run the gRPC server ---
+    RunServer(shared_cache, wal_filename); // Pass cache and WAL filename for logging
+
+    // --- Cleanup (wal_file_stream closes automatically via RAII) ---
+    std::cout << "Server shutting down." << std::endl;
 
     return 0;
 }
