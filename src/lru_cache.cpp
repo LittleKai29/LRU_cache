@@ -175,6 +175,22 @@ static std::vector<std::string> splitString(const std::string& s, char delimiter
     return tokens;
 }
 
+// --- Public Replication API Implementations --- ADD THESE ---
+
+bool LRUCache::applyReplicatedPut(const std::string& key, const std::string& value) {
+    // This public method is called by the replication service.
+    // It calls the internal sync method with is_recovery=true
+    // to prevent WAL writes and further replication attempts.
+    return put_sync(key, value, /*is_recovery=*/true);
+}
+
+bool LRUCache::applyReplicatedRemove(const std::string& key) {
+    // This public method is called by the replication service.
+    // It calls the internal sync method with is_recovery=true.
+    return remove_sync(key, /*is_recovery=*/true);
+}
+// --- END ADD ---
+
 bool LRUCache::loadFromWAL(const std::string& wal_filename, LRUCache& cache_instance) {
     std::ifstream wal_file(wal_filename);
     if (!wal_file.is_open()) {

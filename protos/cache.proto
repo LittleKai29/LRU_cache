@@ -1,46 +1,40 @@
 // protos/cache.proto
 syntax = "proto3";
 
-package cache; // This line controls the C++ namespace
+package cache;
 
-// The cache service definition.
+// --- Original Cache Service (for clients) ---
 service CacheService {
-  // Gets a value from the cache
   rpc Get (GetRequest) returns (GetResponse) {}
-  // Puts a key-value pair into the cache
   rpc Put (PutRequest) returns (PutResponse) {}
-  // Deletes a key from the cache
   rpc Delete (DeleteRequest) returns (DeleteResponse) {}
 }
 
-// Request message for Get RPC
-message GetRequest {
-  string key = 1;
+// --- New Replication Service (for primary to call replicas) ---
+service ReplicationService {
+  // Applies a replicated operation (Put or Delete)
+  rpc ApplyOperation (ReplicationRequest) returns (ReplicationResponse) {}
 }
 
-// Response message for Get RPC
-message GetResponse {
-  string value = 1;
-  bool found = 2; // Indicate if the key was found (and not expired)
+// --- Messages for CacheService ---
+message GetRequest { string key = 1; }
+message GetResponse { string value = 1; bool found = 2; }
+message PutRequest { string key = 1; string value = 2; }
+message PutResponse { bool success = 1; }
+message DeleteRequest { string key = 1; }
+message DeleteResponse { bool success = 1; }
+
+// --- Messages for ReplicationService ---
+message ReplicationRequest {
+  enum OperationType {
+    PUT = 0;
+    DEL = 1;
+  }
+  OperationType op_type = 1;
+  string key = 2;
+  string value = 3; // Only used for PUT operations
 }
 
-// Request message for Put RPC
-message PutRequest {
-  string key = 1;
-  string value = 2;
-}
-
-// Response message for Put RPC (can be empty if no specific info needed)
-message PutResponse {
-  bool success = 1; // Optional: indicate success
-}
-
-// Request message for Delete RPC
-message DeleteRequest {
-  string key = 1;
-}
-
-// Response message for Delete RPC
-message DeleteResponse {
-  bool success = 1; // Optional: indicate success
+message ReplicationResponse {
+  bool success = 1; // Did the replica apply it successfully?
 }

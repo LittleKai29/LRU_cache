@@ -53,6 +53,11 @@ public:
     bool put(const std::string& key, const std::string& value);
     bool remove(const std::string& key);
 
+    // --- Public Replication API (Replica-facing) --- ADD THESE ---
+    bool applyReplicatedPut(const std::string& key, const std::string& value);
+    bool applyReplicatedRemove(const std::string& key);
+    // --- END ADD ---
+
     // --- Recovery Method ---
     // Static method to load state from WAL into a cache instance
     static bool loadFromWAL(const std::string& wal_filename, LRUCache& cache_instance);
