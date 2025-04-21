@@ -10,6 +10,9 @@
 #include <condition_variable> // For queue CV
 #include <atomic>        // For stopping workers
 #include <chrono>        // For sleep/timeouts
+#include <sstream>   // For parsing config and splitting strings
+#include <algorithm> // For std::find, std::remove, std::stoi, std::stoul
+#include <cctype>    // For std::isspace
 
 // gRPC Headers
 #include <grpcpp/grpcpp.h>
@@ -149,14 +152,30 @@ public:
     // --- CacheService Implementation (Client-facing) ---
 
     Status Get(ServerContext* context, const GetRequest* request,
-               GetResponse* response) override {
-        // No changes needed for Get
-        std::cout << "[CacheService] Received GET request for key: " << request->key() << std::endl;
-        std::optional<std::string> value_opt = lru_cache_.get(request->key());
-        // ... (rest of Get implementation as before) ...
-        if (value_opt.has_value()) { /* set response */ } else { /* set response */ }
-        return Status::OK;
-    }
+        GetResponse* response) override {
+            std::cout << "[CacheService] Received GET request for key: " << request->key() << std::endl;
+            std::optional<std::string> value_opt = lru_cache_.get(request->key());
+
+            // *** ADD EXTRA DEBUG LOGGING ***
+            if (value_opt.has_value()) {
+                std::cout << "  DEBUG: LRUCache::get returned value: '" << value_opt.value() << "'" << std::endl;
+            } else {
+                std::cout << "  DEBUG: LRUCache::get returned std::nullopt" << std::endl;
+            }
+            // *** END EXTRA DEBUG LOGGING ***
+
+
+            if (value_opt.has_value()) {
+                response->set_value(value_opt.value());
+                response->set_found(true);
+                std::cout << "  Found value: " << value_opt.value() << std::endl;
+            } else {
+                response->set_value("");
+                response->set_found(false);
+                std::cout << "  Key not found or expired." << std::endl;
+            }
+            return Status::OK;
+        }
 
     Status Put(ServerContext* context, const PutRequest* request,
                PutResponse* response) override {
@@ -258,73 +277,159 @@ public:
     }
 };
 
-// --- Server Runner ---
-// Now takes replica addresses
-void RunServer(LRUCache& cache_instance, const std::string& wal_filename, const std::vector<std::string>& replica_addrs) {
-    std::string server_address("0.0.0.0:50051"); // Make this configurable?
-    CacheServiceImpl service(cache_instance, replica_addrs); // Pass replicas to service
+// --- Helper function to trim whitespace ---
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\n\r\f\v");
+    if (std::string::npos == first) {
+        return str;
+    }
+    size_t last = str.find_last_not_of(" \t\n\r\f\v");
+    return str.substr(first, (last - first + 1));
+}
+
+// --- Configuration Structure ---
+struct ServerConfig {
+    std::string listen_address = "0.0.0.0:50051";
+    std::size_t capacity = 10;
+    int ttl_seconds = 60;
+    std::string wal_file = "cache.wal";
+    std::vector<std::string> replica_addresses; // Empty means replica mode
+};
+
+// --- Configuration Parsing Function ---
+bool loadConfig(const std::string& filename, ServerConfig& config) {
+    std::ifstream config_file(filename);
+    if (!config_file.is_open()) {
+        std::cerr << "Warning: Could not open config file '" << filename << "'. Using default settings." << std::endl;
+        return true;
+    }
+
+    std::cout << "Loading configuration from: " << filename << std::endl;
+    std::string line;
+    int line_num = 0;
+    while (std::getline(config_file, line)) {
+        line_num++;
+
+        // *** ADD: Remove comments first ***
+        size_t comment_pos = line.find('#');
+        if (comment_pos != std::string::npos) {
+            line = line.substr(0, comment_pos); // Keep only the part before '#'
+        }
+
+        line = trim(line); // Trim whitespace AFTER removing comment
+        if (line.empty()) { // Skip empty lines (including lines that were only comments)
+            continue;
+        }
+
+        size_t equals_pos = line.find('=');
+        if (equals_pos == std::string::npos) {
+            std::cerr << "Warning: Skipping malformed line " << line_num << " in config: " << line << std::endl;
+            continue;
+        }
+
+        std::string key = trim(line.substr(0, equals_pos));
+        std::string value = trim(line.substr(equals_pos + 1));
+
+        // --- Rest of the parsing logic remains the same ---
+        if (key == "listen_address") {
+            config.listen_address = value;
+        } else if (key == "capacity") {
+            try {
+                config.capacity = std::stoul(value);
+                if (config.capacity == 0) { /* handle 0 capacity */ config.capacity = 1; }
+            } catch (const std::exception& e) { /* handle error */ }
+        } else if (key == "ttl_seconds") {
+             try {
+                config.ttl_seconds = std::stoi(value);
+            } catch (const std::exception& e) { /* handle error */ }
+        } else if (key == "wal_file") {
+            config.wal_file = value;
+        } else if (key == "replica_addresses") {
+            config.replica_addresses.clear(); // Clear previous entries if key is found again
+            if (!value.empty()) {
+                std::stringstream ss(value);
+                std::string segment;
+                while (std::getline(ss, segment, ',')) {
+                    std::string trimmed_addr = trim(segment);
+                    if (!trimmed_addr.empty()) {
+                        config.replica_addresses.push_back(trimmed_addr);
+                    }
+                }
+            }
+        } else {
+             std::cerr << "Warning: Skipping unknown configuration key '" << key << "' at line " << line_num << std::endl;
+        }
+    }
+    return true;
+}
+
+
+// --- Server Runner (Modified) ---
+// No longer takes config parameters directly, uses the global config struct implicitly or explicitly
+void RunServer(LRUCache& cache_instance, const ServerConfig& config) { // Pass config struct
+    CacheServiceImpl service(cache_instance, config.replica_addresses); // Pass replicas to service
 
     grpc::EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
-    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    builder.AddListeningPort(config.listen_address, grpc::InsecureServerCredentials()); // Use config listen address
 
-    // *** Register BOTH services ***
     builder.RegisterService(static_cast<CacheService::Service*>(&service));
     builder.RegisterService(static_cast<ReplicationService::Service*>(&service));
 
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    std::cout << "Server listening on " << server_address << std::endl;
-    std::cout << "Using WAL file: " << wal_filename << std::endl;
-    if (!replica_addrs.empty()) {
+    std::cout << "Server listening on " << config.listen_address << std::endl; // Log configured address
+    std::cout << "Using WAL file: " << config.wal_file << std::endl;
+    if (!config.replica_addresses.empty()) {
          std::cout << "Operating in PRIMARY mode." << std::endl;
+         for(const auto& addr : config.replica_addresses) {
+             std::cout << "  - Replicating to: " << addr << std::endl;
+         }
     } else {
          std::cout << "Operating in REPLICA mode." << std::endl;
     }
 
-    server->Wait(); // Blocks here
-    // Service destructor runs when server is shut down, stopping workers
+    server->Wait();
 }
 
-// --- Main Server Entry Point ---
+// --- Main Server Entry Point (Modified) ---
 int main(int argc, char** argv) {
-    // --- Configuration ---
-    const std::size_t cache_capacity = 10;
-    const int ttl_seconds = 60;
-    const std::string wal_filename = "cache.wal"; // Base WAL name
-
-    // --- Parse Replica Addresses (Simple Example) ---
-    std::vector<std::string> replica_addrs;
-    // Example: ./cache_server replica1:50051 replica2:50051
-    // Skip argv[0] (program name)
-    for (int i = 1; i < argc; ++i) {
-        replica_addrs.push_back(argv[i]);
+    // --- Load Configuration ---
+    ServerConfig config;
+    std::string config_filename = "cache_config.cfg"; // Default config file name
+    // Optional: Allow overriding config file path via command line argument
+    if (argc > 1) {
+        config_filename = argv[1];
+        std::cout << "Using configuration file specified on command line: " << config_filename << std::endl;
+    }
+    if (!loadConfig(config_filename, config)) {
+        std::cerr << "FATAL: Failed to load configuration. Exiting." << std::endl;
+        return 1;
     }
 
-    // --- Create Cache Instance ---
-    LRUCache shared_cache(cache_capacity, ttl_seconds);
-    std::cout << "LRU Cache initialized (Capacity: " << cache_capacity << ", TTL: " << ttl_seconds << "s)" << std::endl;
+    // --- Create Cache Instance using loaded config ---
+    LRUCache shared_cache(config.capacity, config.ttl_seconds);
+    std::cout << "LRU Cache initialized (Capacity: " << config.capacity << ", TTL: " << config.ttl_seconds << "s)" << std::endl;
 
-    // --- Load State from WAL ---
-    if (!LRUCache::loadFromWAL(wal_filename, shared_cache)) {
-         std::cerr << "FATAL: Failed to load state from WAL. Exiting." << std::endl;
+    // --- Load State from WAL using loaded config ---
+    if (!LRUCache::loadFromWAL(config.wal_file, shared_cache)) {
+         std::cerr << "FATAL: Failed to load state from WAL '" << config.wal_file << "'. Exiting." << std::endl;
          return 1;
     }
     std::cout << "Cache state after WAL recovery: ";
     shared_cache.print();
 
-    // --- Open WAL File for Appending ---
-    std::ofstream wal_file_stream(wal_filename, std::ios::app);
+    // --- Open WAL File for Appending using loaded config ---
+    std::ofstream wal_file_stream(config.wal_file, std::ios::app);
     if (!wal_file_stream.is_open()) {
-        std::cerr << "FATAL: Could not open WAL file '" << wal_filename << "' for appending." << std::endl;
+        std::cerr << "FATAL: Could not open WAL file '" << config.wal_file << "' for appending." << std::endl;
         return 1;
     }
     shared_cache.setWalStream(&wal_file_stream);
     std::cout << "WAL stream attached to cache instance." << std::endl;
 
-    // --- Run the gRPC server ---
-    // Pass replica addresses. If empty, server acts as a replica.
-    RunServer(shared_cache, wal_filename, replica_addrs);
+    // --- Run the gRPC server using loaded config ---
+    RunServer(shared_cache, config); // Pass the config struct
 
     std::cout << "Server shutting down." << std::endl;
     return 0;
