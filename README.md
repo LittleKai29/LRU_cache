@@ -1,6 +1,6 @@
 # gRPC LRU Cache with WAL and Asynchronous Replication
 
-This project implements a thread-safe Least Recently Used (LRU) cache in C++ with Time-To-Live (TTL) support. It exposes a simple Get/Put/Delete API over gRPC and includes features for persistence using a Write-Ahead Log (WAL) and basic high availability through asynchronous primary-replica replication.
+This project implements a thread-safe Least Recently Used (LRU) cache in C++ with Time-To-Live (TTL) support. It exposes a simple Get/Put/Delete API over gRPC and includes features for persistence using a Write-Ahead Log (WAL) and basic high availability through asynchronous primary-replica replication. 
 
 ## Features
 
@@ -79,6 +79,7 @@ wal_file=cache_server.wal # Path relative to execution dir, or absolute
 # If addresses are present, the server runs in PRIMARY mode.
 # replica_addresses=localhost:50052,192.168.1.100:50051
 replica_addresses=
+```
 
 Key Settings:
 
@@ -98,13 +99,12 @@ Prepare Configuration Files: Create separate .cfg files for the primary and each
 Start Replicas: In separate terminals or as background processes, run:
 
 ./build/cache_server /path/to/replica_config.cfg
-Use code with caution.
-Bash
+
+
 Start Primary: In a separate terminal or as a background process, run:
 
 ./build/cache_server /path/to/primary_config.cfg
-Use code with caution.
-Bash
+
 (The server will look for the specified config file. If no argument is given, it defaults to cache_config.cfg in the current directory).
 
 Usage / Interaction
@@ -117,18 +117,15 @@ Ensure grpcurl is installed and the server has reflection enabled (it is by defa
 Put:
 
 grpcurl -plaintext -d '{"key": "mykey", "value": "myvalue"}' <primary_host>:<primary_port> cache.CacheService.Put
-Use code with caution.
-Bash
+
 Get:
 
 grpcurl -plaintext -d '{"key": "mykey"}' <primary_host>:<primary_port> cache.CacheService.Get
-Use code with caution.
-Bash
+
 Delete:
 
 grpcurl -plaintext -d '{"key": "mykey"}' <primary_host>:<primary_port> cache.CacheService.Delete
-Use code with caution.
-Bash
+
 Replace <primary_host>:<primary_port> with the actual address from the primary's configuration (e.g., localhost:50051).
 
 Using the Included Client:
@@ -136,8 +133,7 @@ Using the Included Client:
 A basic client executable (cache_client) is also built. It demonstrates simple interactions:
 
 ./build/cache_client
-Use code with caution.
-Bash
+
 Project Structure
 .
 ├── CMakeLists.txt          # Main CMake build script
@@ -155,7 +151,7 @@ Project Structure
 ├── build/                  # Build directory (created by CMake)
 ├── cache_config.cfg        # Example configuration file
 └── test_replication.sh     # Example test script (if you kept it)
-Use code with caution.
+
 Future Improvements / TODO
 More robust error handling in replication (retries, failure detection).
 
@@ -172,3 +168,5 @@ Monitoring: Expose metrics (cache hits/misses, queue length, etc.).
 Dockerization (initial attempt exists, needs refinement).
 
 More comprehensive unit and integration tests.
+
+Leader election with Raft
