@@ -135,6 +135,7 @@ A basic client executable (cache_client) is also built. It demonstrates simple i
 ./build/cache_client
 
 ## Project Structure
+```
 .
 ├── CMakeLists.txt          # Main CMake build script
 ├── README.md               # This file
@@ -151,7 +152,7 @@ A basic client executable (cache_client) is also built. It demonstrates simple i
 ├── build/                  # Build directory (created by CMake)
 ├── cache_config.cfg        # Example configuration file
 └── test_replication.sh     # Example test script (if you kept it)
-
+```
 ## Future Improvements / TODO
 More robust error handling in replication (retries, failure detection).
 
