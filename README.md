@@ -115,17 +115,17 @@ Using grpcurl (Recommended):
 Ensure grpcurl is installed and the server has reflection enabled (it is by default in the code).
 
 Put:
-
+``` bash
 grpcurl -plaintext -d '{"key": "mykey", "value": "myvalue"}' <primary_host>:<primary_port> cache.CacheService.Put
-
+```
 Get:
-
+``` bash
 grpcurl -plaintext -d '{"key": "mykey"}' <primary_host>:<primary_port> cache.CacheService.Get
-
+```
 Delete:
-
+``` bash
 grpcurl -plaintext -d '{"key": "mykey"}' <primary_host>:<primary_port> cache.CacheService.Delete
-
+```
 Replace <primary_host>:<primary_port> with the actual address from the primary's configuration (e.g., localhost:50051).
 
 Using the Included Client:
