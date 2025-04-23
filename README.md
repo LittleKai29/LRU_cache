@@ -81,7 +81,7 @@ wal_file=cache_server.wal # Path relative to execution dir, or absolute
 replica_addresses=
 ```
 
-Key Settings:
+## Key Settings:
 
 listen_address: The IP address and port the gRPC server binds to. Must be unique for each server instance running on the same machine.
 
@@ -93,7 +93,7 @@ wal_file: Path to the Write-Ahead Log file for persistence. Should be unique for
 
 replica_addresses: Comma-separated list of host:port for replica servers. If present and non-empty, the server acts as a primary. If empty or commented out, it acts as a replica.
 
-Running
+## Running
 Prepare Configuration Files: Create separate .cfg files for the primary and each replica, ensuring unique listen_address and wal_file settings in each. Set replica_addresses appropriately for the primary.
 
 Start Replicas: In separate terminals or as background processes, run:
@@ -107,7 +107,7 @@ Start Primary: In a separate terminal or as a background process, run:
 
 (The server will look for the specified config file. If no argument is given, it defaults to cache_config.cfg in the current directory).
 
-Usage / Interaction
+## Usage / Interaction
 You can interact with the running cache server (typically the primary) using a gRPC client or a tool like grpcurl.
 
 Using grpcurl (Recommended):
@@ -134,7 +134,7 @@ A basic client executable (cache_client) is also built. It demonstrates simple i
 
 ./build/cache_client
 
-Project Structure
+## Project Structure
 .
 ├── CMakeLists.txt          # Main CMake build script
 ├── README.md               # This file
@@ -152,7 +152,7 @@ Project Structure
 ├── cache_config.cfg        # Example configuration file
 └── test_replication.sh     # Example test script (if you kept it)
 
-Future Improvements / TODO
+## Future Improvements / TODO
 More robust error handling in replication (retries, failure detection).
 
 Mechanism for replicas to perform a full state sync from the primary on startup.
