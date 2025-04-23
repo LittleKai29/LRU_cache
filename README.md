@@ -154,20 +154,12 @@ A basic client executable (cache_client) is also built. It demonstrates simple i
 └── test_replication.sh     # Example test script (if you kept it)
 ```
 ## Future Improvements / TODO
-More robust error handling in replication (retries, failure detection).
-
-Mechanism for replicas to perform a full state sync from the primary on startup.
-
-More efficient WAL format (binary) and durability options (fsync).
-
-WAL segmentation and cleanup/compaction.
-
-Security: Add TLS encryption to gRPC communication.
-
-Monitoring: Expose metrics (cache hits/misses, queue length, etc.).
-
-Dockerization (initial attempt exists, needs refinement).
-
-More comprehensive unit and integration tests.
-
-Leader election with Raft
+- More robust error handling in replication (retries, failure detection).
+- Mechanism for replicas to perform a full state sync from the primary on startup.
+- More efficient WAL format (binary) and durability options (fsync).
+- WAL segmentation and cleanup/compaction.
+- Security: Add TLS encryption to gRPC communication.
+- Monitoring: Expose metrics (cache hits/misses, queue length, etc.).
+- Dockerization (initial attempt exists, needs refinement).
+- More comprehensive unit and integration tests.
+- Leader election with Raft.
